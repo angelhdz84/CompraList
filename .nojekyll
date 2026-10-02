@@ -1,0 +1,3 @@
+# Con esto Pages sirve los ficheros tal cual, sin pasar por Jekyll.
+# No es necesario para el APK de Capacitor, pero lo deja listo por si en algún
+# momento se habilita GitHub Pages en este repo.

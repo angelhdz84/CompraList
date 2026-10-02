@@ -1,0 +1,30 @@
+# Dependencias de tooling: la app NO tiene dependencias en runtime, esto es solo
+# para los tests (Playwright).
+node_modules/
+
+# Artefactos de Playwright
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Proyecto Android de Capacitor: lo genera `cap add android` en cada build de
+# GitHub Actions y no se versiona. Así el repo sigue siendo solo la web estática,
+# sin build step, tal y como describe AGENTS.md.
+android/
+
+# Credenciales de firma: el keystore NUNCA se sube (va en GitHub Secrets).
+*.keystore
+*.jks
+keystore.properties
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Logs sueltos
+*.log
+npm-debug.log*

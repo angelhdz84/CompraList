@@ -1,0 +1,49 @@
+{
+  "name": "CompraLIST Pro - Listas de compras",
+  "short_name": "CompraLIST",
+  "description": "Listas de compras rapidas con control de presupuesto, estadisticas, historial y modo supermercado.",
+  "lang": "es",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "compralist-pro",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9fafb",
+  "theme_color": "#4f46e5",
+  "categories": ["shopping", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ver historial",
+      "short_name": "Historial",
+      "url": "./index.html#historial",
+      "description": "Abrir el historial de compras anteriores"
+    }
+  ]
+}
