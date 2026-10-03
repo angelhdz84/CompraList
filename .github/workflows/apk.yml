@@ -1,0 +1,201 @@
+name: Build APK
+
+# Empaqueta la web estatica en un APK de Android con Capacitor SIN tocar el
+# repositorio: ni package.json, ni capacitor.config.json, ni una carpeta
+# android/ versionada. Todo ocurre dentro del runner y lo unico que sale de aqui
+# es el .apk.
+#
+# - La app web sigue siendo index.html + css/style.css + js/app.js, sin build.
+#   Node sigue siendo solo tooling, igual que tests/ y tools/.
+# - Se copia a un directorio de escenario (www/) SOLO lo que la app necesita en
+#   tiempo de ejecucion. Si se usara el repo entero como webDir, el APK se
+#   llevaria node_modules, tests/ y tools/ dentro.
+# - Se firma con un keystore fijo guardado en Secrets. Importante: NO se usa el
+#   keystore debug de Gradle porque se regenera en cada runner, de modo que dos
+#   builds distintos tendrian firmas distintas y el segundo APK no podria
+#   actualizar al primero instalado (habria que desinstalar y perder los datos).
+#
+# Nota sobre la plantilla: la de Capacitor 7 NO trae bloque signingConfigs, asi
+# que hay que añadirlo al final. No se parchea el texto de la plantilla porque
+# cambiaria entre versiones; se le AÑADE un bloque android { } nuevo, que el DSL
+# de Groovy fusiona con el existente.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CAPACITOR_VERSION: '7.4.3'
+  APP_ID: 'com.compralist.app'
+  APP_NAME: 'CompraLIST'
+
+jobs:
+  apk:
+    name: Compilar APK firmado
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # AGP 8.x exige JDK 17.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # El runner no trae el SDK de Android: hay que instalarlo y aceptar la
+      # licencia o Gradle falla al arrancar.
+      - name: Instalar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Aceptar licencias e instalar platform 35 y build-tools 35
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      # Solo lo que la app usa en ejecucion. Sin esto el APK arrastraria
+      # node_modules y los ficheros de test.
+      - name: Preparar los ficheros web de la app
+        run: |
+          set -euo pipefail
+          rm -rf www
+          mkdir -p www
+          cp index.html manifest.webmanifest sw.js www/
+          cp -r css js assets www/
+          echo "--- contenido de www/ ---"
+          find www -type f | sort
+          echo "--- peso ---"
+          du -sh www
+
+      - name: Generar proyecto Android con Capacitor
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-package-lock \
+            "@capacitor/core@$CAPACITOR_VERSION" \
+            "@capacitor/android@$CAPACITOR_VERSION"
+          npx --yes "@capacitor/cli@$CAPACITOR_VERSION" init \
+            "$APP_NAME" "$APP_ID" --web-dir www --no-interactive
+          npx --yes "@capacitor/cli@$CAPACITOR_VERSION" add android
+          npx --yes "@capacitor/cli@$CAPACITOR_VERSION" sync android
+
+      - name: Fijar el id de aplicacion
+        run: |
+          set -euo pipefail
+          # La plantilla trae com.getcapacitor.*; se fuerza el nuestro. sed es
+          # idempotente, asi que da igual que cap ya lo haya cambiado.
+          sed -i "s/applicationId \".*\"/applicationId \"$APP_ID\"/" android/app/build.gradle
+          sed -i "s/namespace \".*\"/namespace \"$APP_ID\"/" android/app/build.gradle
+          grep -E 'applicationId|namespace' android/app/build.gradle
+
+      - name: Firmar con el keystore de Secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/compralist.keystore
+
+          # Falla aqui, con un mensaje claro, si la clave no cuadra; y no tres
+          # minutos despues dentro de Gradle con un error dificil de leer.
+          keytool -list -keystore android/compralist.keystore \
+            -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
+
+          cat > android/keystore.properties <<PROPS
+          storeFile=compralist.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          PROPS
+
+          # Bloque AÑADIDO al final: la plantilla de Capacitor 7 no define
+          # signingConfigs, asi que se le agrega. El DSL de Groovy fusiona varios
+          # bloques android { } del mismo fichero.
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          // ---- añadido por .github/workflows/apk.yml ----
+          // El keystore NO se versiona: android/ esta en .gitignore y la clave
+          // vive cifrada en el secret KEYSTORE_BASE64.
+          android {
+              signingConfigs {
+                  release {
+                      def propsFile = rootProject.file('keystore.properties')
+                      if (!propsFile.exists()) {
+                          throw new GradleException(
+                              'Falta android/keystore.properties. Sin el, el APK saldria SIN FIRMAR ' +
+                              'y Android lo rechazaria al instalar.')
+                      }
+                      def props = new Properties()
+                      props.load(new FileInputStream(propsFile))
+                      storeFile rootProject.file(props['storeFile'])
+                      storePassword props['storePassword']
+                      keyAlias props['keyAlias']
+                      keyPassword props['keyPassword']
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+          echo "--- bloque de firma añadido ---"
+          tail -n 30 android/app/build.gradle
+
+      - name: Compilar APK release
+        run: |
+          set -euo pipefail
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+
+      - name: Verificar que el APK sale firmado
+        run: |
+          set -euo pipefail
+          APK=$(find android/build/outputs/apk/release -name '*.apk' | head -n1)
+          if [ -z "$APK" ]; then
+            echo "::error::No se encontro ningun APK en android/build/outputs/apk/release"
+            find android/build/outputs -type f 2>/dev/null || true
+            exit 1
+          fi
+          echo "APK: $APK"
+          ls -lh "$APK"
+
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | head -n1)
+          if [ -z "$APKSIGNER" ]; then
+            echo "::error::No se encontro apksigner; no se puede comprobar la firma"
+            exit 1
+          fi
+          echo "--- certificados del APK ---"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          echo "APK firmado correctamente"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compralist-apk
+          path: android/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Resumen
+        run: |
+          echo "### APK listo" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Descárgalo del artefacto **compralist-apk** de esta run." >> "$GITHUB_STEP_SUMMARY"
+          echo "Pásalo al móvil y ábrelo. Android pedirá permitir origenes desconocidos una vez." >> "$GITHUB_STEP_SUMMARY"

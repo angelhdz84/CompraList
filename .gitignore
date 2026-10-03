@@ -12,6 +12,11 @@ blob-report/
 # GitHub Actions y no se versiona. Así el repo sigue siendo solo la web estática,
 # sin build step, tal y como describe AGENTS.md.
 android/
+capacitor.config.json
+
+# Directorio de escenario del APK: solo los ficheros que la app usa en ejecución.
+# No se versiona porque lo crea el workflow en cada build.
+www/
 
 # Credenciales de firma: el keystore NUNCA se sube (va en GitHub Secrets).
 *.keystore
