@@ -91,8 +91,12 @@ jobs:
           npm install --no-save --no-package-lock \
             "@capacitor/core@$CAPACITOR_VERSION" \
             "@capacitor/android@$CAPACITOR_VERSION"
+          # OJO: `cap init` no tiene --no-interactive (en 7.4.3 solo acepta
+          # --web-dir y --skip-appid-validation). No hace falta: si se pasan
+          # appName y appId y la terminal no es interactiva, el propio comando
+          # usa --web-dir sin preguntar nada.
           npx --yes "@capacitor/cli@$CAPACITOR_VERSION" init \
-            "$APP_NAME" "$APP_ID" --web-dir www --no-interactive
+            "$APP_NAME" "$APP_ID" --web-dir www
           npx --yes "@capacitor/cli@$CAPACITOR_VERSION" add android
           npx --yes "@capacitor/cli@$CAPACITOR_VERSION" sync android
 
