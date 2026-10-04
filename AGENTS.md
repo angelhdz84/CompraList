@@ -190,8 +190,10 @@ en la PC solo hacen falta `git` y `gh`. `package.json` **no se toca** (Capacitor
 ### Secrets del repo (los 4, no se pueden volver a leer)
 
 `KEYSTORE_BASE64` (el keystore en base64), `KEYSTORE_PASSWORD`, `KEY_ALIAS` y `KEY_PASSWORD`.
-**Copia local de seguridad: `Documents/CompraLIST-APK/`** (keystore + claves). Si se pierde el keystore ya no se
-puede actualizar la app instalada: hay que desinstalar y se pierden los datos del `localStorage`.
+**Copia local de seguridad: `apk/` en el propio repo** (keystore + claves + el APK firmado), y esa carpeta está
+en `.gitignore`. Comprobado: sin esa regla, un `git add -A` subiendo el `.apk` de 3 MB y, sobre todo, el fichero
+con las contraseñas en un repositorio **público**. Si se pierde el keystore ya no se puede actualizar la app
+instalada: hay que desinstalar y se pierden los datos del `localStorage`.
 
 Regenerar el keystore (si algún día hace falta, p. ej. al perderlo) exige `keytool`, que viene con un JDK: se
 puede lanzar un workflow temporal que lo cree y lo deje como artefacto, como se hizo la primera vez.

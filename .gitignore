@@ -23,6 +23,20 @@ www/
 *.jks
 keystore.properties
 
+# Entrega local del APK firmado y su respaldo de claves.
+#
+# OJO: esta carpeta contiene el keystore Y las contrasenas, y el repositorio es
+# PÚBLICO. Si se quita esta regla o alguien hace `git add -f apk/`, las
+# contrasenas de firma quedan publicadas y ya no se pueden cambiar (el secret
+# está cifrado pero el fichero de texto con las contraseñas no).
+#
+# Copia de seguridad, no fuente del repo: para reconstruir el keystore, mira
+# "APK de Android" en AGENTS.md.
+apk/
+*.apk
+CLAVES-*.txt
+compralist*.keystore
+
 # Sistema y editores
 .DS_Store
 Thumbs.db
