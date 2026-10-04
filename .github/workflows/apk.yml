@@ -56,16 +56,20 @@ jobs:
         with:
           node-version: '22'
 
-      # El runner no trae el SDK de Android: hay que instalarlo y aceptar la
-      # licencia o Gradle falla al arrancar.
+      # El runner no trae el SDK de Android: hay que instalarlo o Gradle falla.
+      # OJO: el valor por defecto de esta action es `tools platform-tools`, y el
+      # paquete "tools" ya no existe en los cmdline-tools actuales (16.0); falla
+      # con "Warning: Failed to find package 'tools'" y tumba todo el build. Se
+      # pasan solo los paquetes que existen hoy.
       - name: Instalar Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
-      - name: Aceptar licencias e instalar platform 35 y build-tools 35
+      - name: Aceptar licencias de Android
         run: |
           set -euo pipefail
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       # Solo lo que la app usa en ejecucion. Sin esto el APK arrastraria
       # node_modules y los ficheros de test.
