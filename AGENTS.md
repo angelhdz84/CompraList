@@ -162,6 +162,40 @@ Keys are prefixed `compralist_`. Per-list keys embed the date: `compralist_<YYYY
 - `manifest.webmanifest` declares `assets/icon-maskable-512.png` (logo at 62%, full-bleed background) separately from the
   rounded-corner `icon-512.png`.
 
+## APK de Android (GitHub Actions + Capacitor)
+
+El repo es **solo la web**. El APK se compila entero en `.github/workflows/apk.yml`, en el runner de GitHub:
+en la PC solo hacen falta `git` y `gh`. `package.json` **no se toca** (Capacitor se invoca con `npx -y`) y
+`android/`, `www/` y `capacitor.config.json` están en `.gitignore`.
+
+- **El APK lleva la app dentro** y la sirve desde `https://localhost`, así que funciona sin conexión. Es la
+  diferencia con TWA, que solo envuelve una URL. Un WebView a pelo con `file://` se descartó por riesgo: el
+  `localStorage`, que es donde viven las listas, no es un origen de confianza ahí.
+- **Firma con un keystore fijo de Secrets, nunca con el debug de Gradle.** El debug se regenera en cada runner,
+  así que dos builds tendrían firmas distintas y el segundo APK no podría actualizar al primero instalado
+  (habría que desinstalar y perder los datos). Con un keystore fijo todas las builds se actualizan entre sí.
+- **PKCS12 ignora `-keypass`**: keytool avisa al crearlo y usa el `storepass`. Por eso `keystore.properties` lleva
+  `keyPassword` igual a `storePassword`; poner el otro valor hace fallar el empaquetado con
+  `KeytoolException: Get Key failed: Given final block not properly padded`.
+- **JDK 21, no 17**: `capacitor-android` declara `sourceCompatibility = VERSION_21`.
+- `android-actions/setup-android@v3` trae `packages: 'tools platform-tools'` por defecto y el paquete `tools`
+  ya no existe: hay que pasar `packages:` explícito o el build muere con `Failed to find package 'tools'`.
+- **El APK sale en `android/app/build/outputs/apk/release/`**, no en `android/build/...`: `android/` es la raíz de
+  Gradle y `app/` el módulo.
+- Se copia a `www/` **solo lo que la app usa en ejecución**. Usar el repo entero como `webDir` metería
+  `node_modules`, `tests/` y `tools/` dentro del APK.
+- El build verifica la firma con `apksigner` antes de publicar el artefacto, y hay una comprobación previa con
+  `keytool -importkeystore` que lee la clave privada (keytool exige contraseñas de 6+ caracteres).
+
+### Secrets del repo (los 4, no se pueden volver a leer)
+
+`KEYSTORE_BASE64` (el keystore en base64), `KEYSTORE_PASSWORD`, `KEY_ALIAS` y `KEY_PASSWORD`.
+**Copia local de seguridad: `Documents/CompraLIST-APK/`** (keystore + claves). Si se pierde el keystore ya no se
+puede actualizar la app instalada: hay que desinstalar y se pierden los datos del `localStorage`.
+
+Regenerar el keystore (si algún día hace falta, p. ej. al perderlo) exige `keytool`, que viene con un JDK: se
+puede lanzar un workflow temporal que lo cree y lo deje como artefacto, como se hizo la primera vez.
+
 ## Tooling gotcha worth knowing
 
 - The `edit` tool **cannot match `oldString` containing accented characters** in this repo (it fails on `Máximo`,
