@@ -46,11 +46,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # AGP 8.x exige JDK 17.
+      # JDK 21, no 17: el módulo capacitor-android declara
+      # sourceCompatibility/targetCompatibility = VERSION_21 y con 17 el build
+      # muere en :capacitor-android:compileReleaseJavaWithJavac con
+      # "error: invalid source release: 21".
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - uses: actions/setup-node@v4
         with:
