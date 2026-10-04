@@ -206,10 +206,13 @@ jobs:
       - name: Verificar que el APK sale firmado
         run: |
           set -euo pipefail
-          APK=$(find android/build/outputs/apk/release -name '*.apk' | head -n1)
+          # OJO: el APK sale en app/build/... (modulo :app), no en
+          # android/build/... . Es android/ la raiz de Gradle y app/ el modulo.
+          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -n1)
           if [ -z "$APK" ]; then
-            echo "::error::No se encontro ningun APK en android/build/outputs/apk/release"
-            find android/build/outputs -type f 2>/dev/null || true
+            echo "::error::No se encontro ningun APK en android/app/build/outputs/apk/release"
+            echo "--- APKs que si hay ---"
+            find android -path '*outputs*' -name '*.apk' 2>/dev/null || echo "(ninguno)"
             exit 1
           fi
           echo "APK: $APK"
@@ -220,14 +223,14 @@ jobs:
             echo "::error::No se encontro apksigner; no se puede comprobar la firma"
             exit 1
           fi
-          echo "--- certificados del APK ---"
+          echo "--- verificacion de firma ---"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           echo "APK firmado correctamente"
 
       - uses: actions/upload-artifact@v4
         with:
           name: compralist-apk
-          path: android/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
 
