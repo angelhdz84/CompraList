@@ -127,11 +127,30 @@ jobs:
           keytool -list -keystore android/compralist.keystore \
             -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
 
+          # keyPassword = storePassword a proposito. keytool avisa al crear un
+          # PKCS12 de que no admite contrasenas separadas para store y clave
+          # ("Ignoring user-specified -keypass option and using storepass
+          # instead"), asi que la clave privada va cifrada con el store password.
+          # Poner ahi KEY_PASSWORD hacia fallar el empaquetado con
+          # "Get Key failed: Given final block not properly padded".
+          #
+          # Comprobacion previa: leer la clave de verdad (no solo listar) para que
+          # un problema de contrasena salte en segundos y no despues de un build
+          # entero.
+          keytool -importkeystore \
+            -srckeystore android/compralist.keystore \
+            -srcstorepass "$KEYSTORE_PASSWORD" \
+            -srcalias "$KEY_ALIAS" \
+            -destkeystore /tmp/probe.p12 \
+            -deststoretype PKCS12 -deststorepass probe -destkeypass probe > /dev/null
+          rm -f /tmp/probe.p12
+          echo "clave privada legible con el store password"
+
           cat > android/keystore.properties <<PROPS
           storeFile=compralist.keystore
           storePassword=$KEYSTORE_PASSWORD
           keyAlias=$KEY_ALIAS
-          keyPassword=$KEY_PASSWORD
+          keyPassword=$KEYSTORE_PASSWORD
           PROPS
 
           # Bloque AÑADIDO al final: la plantilla de Capacitor 7 no define
