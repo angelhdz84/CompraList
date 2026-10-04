@@ -136,13 +136,21 @@ jobs:
           #
           # Comprobacion previa: leer la clave de verdad (no solo listar) para que
           # un problema de contrasena salte en segundos y no despues de un build
-          # entero.
-          keytool -importkeystore \
-            -srckeystore android/compralist.keystore \
-            -srcstorepass "$KEYSTORE_PASSWORD" \
-            -srcalias "$KEY_ALIAS" \
-            -destkeystore /tmp/probe.p12 \
-            -deststoretype PKCS12 -deststorepass probe -destkeypass probe > /dev/null
+          # entero. Ojo: keytool exige contrasenas de 6 caracteres o mas, asi que
+          # el password de sondeo no puede ser corto. Con 2>&1 dentro del if para
+          # que el error de keytool se vea en el log en vez de perderse.
+          if ! keytool -importkeystore \
+                -srckeystore android/compralist.keystore \
+                -srcstorepass "$KEYSTORE_PASSWORD" \
+                -srcalias "$KEY_ALIAS" \
+                -destkeystore /tmp/probe.p12 \
+                -deststoretype PKCS12 \
+                -deststorepass "probeprobe" \
+                -destkeypass "probeprobe" 2>&1; then
+            echo "::error::No se pudo leer la clave privada del keystore con el store password."
+            echo "::error::Comprueba KEYSTORE_PASSWORD y KEY_ALIAS en los secrets del repo."
+            exit 1
+          fi
           rm -f /tmp/probe.p12
           echo "clave privada legible con el store password"
 
