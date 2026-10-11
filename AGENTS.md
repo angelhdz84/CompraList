@@ -130,13 +130,20 @@ spec: si no, el fallo aparece en la pantalla de un usuario.
 
 | Uso | Token | Requisito |
 | --- | --- | --- |
-| Texto, icono, borde | `--accent`, `--danger`, `--warning`, `--success` | >= 4,5:1 **sobre** superficie |
-| Relleno (fondo) | `--accent-fill`, `--danger-fill`, `--warning-fill`, `--success-fill` | >= 4,5:1 del **blanco encima** |
+| Texto, icono, borde | `--accent`, `--danger`, `--warning`, `--success`, `--star` | >= 4,5:1 **sobre** superficie |
+| Relleno (fondo) | `--accent-fill`, `--danger-fill`, `--warning-fill`, `--success-fill`, `--star-fill` | >= 4,5:1 del **blanco encima** |
 
   Son requisitos opuestos y un solo valor no puede cumplir los dos. Por eso en modo oscuro los
   tokens de texto se aclaran y los de relleno **no**: `#818cf8` da 4,90:1 sobre la superficie
   oscura (bien para texto) pero el blanco encima cae a 2,98:1 (mal para relleno). Los de relleno
   son iguales en los dos modos a proposito.
+  **La regla para no equivocarte:** si el elemento lleva texto o un glifo ENCIMA, va al token
+  `-fill`, siempre. `.config-badge`, `.action-btn.star:hover`, `.add-suggestion-float:hover`,
+  `.add-suggestion-float.added` y `.badge-count` son cinco casos donde se cumplia mal.
+- **`--star` tenia el mismo problema y no lo habia mirado** hasta casi el final: `#fbbf24` daba
+  1,67:1 tanto como texto sobre blanco como con el blanco encima. Ningun valor cumple los tres
+  papeles a la vez (medido), asi que tambien se separo. Ojo: `#fbbf24` si es correcto en modo
+  oscuro para texto (8,76:1), porque ahi el fondo es claro y el texto oscuro.
 - **Fallos que havia y se corrigieron** (medidos, no supuestos): aviso `#f59e0b` 2,15:1, exito
   `#10b981` 2,54:1 y peligro `#ef4444` 3,76:1 en modo claro; acento `#6366f1` 3,27:1 en oscuro; y
   el hover del boton primario, que ponia `var(--accent-light)` (#818cf8) con texto blanco encima

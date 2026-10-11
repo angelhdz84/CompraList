@@ -63,11 +63,13 @@ const MEDIR_CONTRASTE = () => {
       'peligro como texto': ratio(token('--danger'), token('--surface')),
       'aviso como texto': ratio(token('--warning'), token('--surface')),
       'exito como texto': ratio(token('--success'), token('--surface')),
+      'star como texto': ratio(token('--star'), token('--surface')),
       'blanco sobre relleno de acento': ratio('#ffffff', token('--accent-fill')),
       'blanco sobre hover de acento': ratio('#ffffff', token('--accent-fill-hover')),
       'blanco sobre relleno de peligro': ratio('#ffffff', token('--danger-fill')),
       'blanco sobre relleno de aviso': ratio('#ffffff', token('--warning-fill')),
       'blanco sobre relleno de exito': ratio('#ffffff', token('--success-fill')),
+      'blanco sobre relleno de estrella': ratio('#ffffff', token('--star-fill')),
     },
     // Comparaciones que explican POR QUE hay dos tokens por color.
     acento: { texto: token('--accent'), relleno: token('--accent-fill') },
@@ -76,6 +78,7 @@ const MEDIR_CONTRASTE = () => {
       aviso: token('--warning'),
       exito: token('--success'),
     },
+    star: { texto: token('--star'), relleno: token('--star-fill') },
   };
 };
 
@@ -98,11 +101,13 @@ for (const modo of ['claro', 'oscuro']) {
       'peligro como texto': 4.5,
       'aviso como texto': 4.5,
       'exito como texto': 4.5,
+      'star como texto': 4.5,
       'blanco sobre relleno de acento': 4.5,
       'blanco sobre hover de acento': 4.5,
       'blanco sobre relleno de peligro': 4.5,
       'blanco sobre relleno de aviso': 4.5,
       'blanco sobre relleno de exito': 4.5,
+      'blanco sobre relleno de estrella': 4.5,
     };
 
     const fallos = [];
@@ -141,6 +146,12 @@ test('paleta: los roles de color estan separados', async ({ page }) => {
       `el ${k} de modo oscuro (#${oscuro.semanticos[k]}) debe ser distinto del de claro (#${claro.semanticos[k]})`
     ).not.toBe(claro.semanticos[k]);
   }
+
+  // El caso de la estrella: valia #fbbf24, que daba 1,67:1 tanto como texto
+  // sobre blanco como con el blanco encima. En oscuro se aclara y en claro se
+  // oscurece, igual que el resto.
+  expect(oscuro.star.texto, 'la estrella de texto se aclara en oscuro').not.toBe(claro.star.texto);
+  expect(claro.star.relleno, 'el relleno de estrella NO se aclara en oscuro').toBe(oscuro.star.relleno);
 });
 
 // ------------------------------------------------------- jerarquía visual

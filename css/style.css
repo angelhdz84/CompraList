@@ -26,7 +26,10 @@
   --danger-fill: #dc2626;        /* blanco encima: 4,83:1 */
   --warning-fill: #b45309;       /* blanco encima: 5,02:1 */
   --success-fill: #15803d;       /* blanco encima: 5,02:1 */
-  --star: #fbbf24;
+  /* star es el mismo caso que el resto: 1,67:1 tanto como texto sobre blanco
+     como con el blanco encima. Se separa igual. */
+  --star: #a16207;              /* texto/icono/borde: 4,92:1 sobre blanco */
+  --star-fill: #a16207;         /* blanco encima: 4,92:1 */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
@@ -58,6 +61,8 @@ body.dark {
   --danger: #f87171;             /* 5,29:1 sobre superficie */
   --warning: #fbbf24;            /* 8,76:1 sobre superficie */
   --success: #34d399;            /* 7,61:1 sobre superficie */
+  --star: #fbbf24;               /* 8,76:1 sobre superficie */
+  --star-fill: #a16207;          /* blanco encima: 4,92:1 */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
   --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
@@ -163,7 +168,7 @@ body {
   position: absolute;
   top: -4px;
   right: -4px;
-  background: var(--star);
+  background: var(--star-fill);
   color: white;
   font-size: 0.65rem;
   font-weight: 800;
@@ -682,7 +687,7 @@ input:focus, select:focus {
 }
 
 .action-btn.star:hover {
-  background: var(--star);
+  background: var(--star-fill);
   color: white;
 }
 
@@ -713,13 +718,13 @@ input:focus, select:focus {
 }
 
 .add-suggestion-float:hover {
-  background: var(--star);
+  background: var(--star-fill);
   color: white;
   transform: scale(1.1);
 }
 
 .add-suggestion-float.added {
-  background: var(--star);
+  background: var(--star-fill);
   color: white;
 }
 
@@ -1689,7 +1694,7 @@ input:focus, select:focus {
 /* Insignia flotante de la cabecera */
 .badge-count {
   float: right;
-  background: var(--star);
+  background: var(--star-fill);
   color: #fff;
   padding: 2px 8px;
   border-radius: 10px;
