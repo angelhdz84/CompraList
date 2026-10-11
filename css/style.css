@@ -5,12 +5,27 @@
   --text-primary: #1e293b;
   --text-secondary: #64748b;
   --border: #e2e8f0;
+  /* El acento tiene DOS roles y NO pueden ser el mismo color: como texto o
+     icono necesita leaps sobre superficie clara, pero como fondo lleva texto
+     blanco encima y necesita ser oscuro. Medido con la formula de WCAG:
+     claro #4f46e5 = 6,29:1 sobre blanco; oscuro #818cf8 = 4,90:1 sobre
+     superficie, pero el blanco sobre #818cf8 cae a 2,98:1. Por eso el
+     relleno tiene su propio token. */
   --accent: #4f46e5;
   --accent-light: #818cf8;
   --accent-soft: #e0e7ff;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --success: #10b981;
+  --accent-fill: #4f46e5;        /* fondo con texto blanco: 6,29:1 */
+  --accent-fill-hover: #4338ca; /* oscurece, no aclara: 7,90:1 */
+  /* Los semanticos estan medidos contra 4,5:1. Antes fallaban los tres en
+     modo claro: aviso 2,15:1, exito 2,54:1, peligro 3,76:1. */
+  --danger: #dc2626;             /* 4,83:1 sobre blanco */
+  --warning: #b45309;            /* 5,02:1 sobre blanco */
+  --success: #15803d;            /* 5,02:1 sobre blanco */
+  /* Rellenos: llevan texto blanco ENCIMA, asi que tienen que ser oscuros
+     en los dos modos. Es el mismo par que --accent / --accent-fill. */
+  --danger-fill: #dc2626;        /* blanco encima: 4,83:1 */
+  --warning-fill: #b45309;       /* blanco encima: 5,02:1 */
+  --success-fill: #15803d;       /* blanco encima: 5,02:1 */
   --star: #fbbf24;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -30,9 +45,19 @@ body.dark {
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --border: #334155;
-  --accent: #6366f1;
+  /* En oscuro el acento se aclara porque aqui su rol es texto e icono:
+     #6366f1 daba 3,27:1 sobre superficie. El relleno no se aclara, porque
+     lleva texto blanco encima y aclararlo lo ruinaria. */
+  --accent: #818cf8;             /* texto/icono: 4,90:1 sobre superficie */
   --accent-light: #818cf8;
   --accent-soft: #2e3a4f;
+  --accent-fill: #4f46e5;        /* blanco encima: 6,29:1 */
+  --accent-fill-hover: #4338ca; /* blanco encima: 7,90:1 */
+  /* Los semanticos se aclaran en oscuro por el mismo motivo: los valores
+     de modo claro darían solo ~3:1 sobre esta superficie. */
+  --danger: #f87171;             /* 5,29:1 sobre superficie */
+  --warning: #fbbf24;            /* 8,76:1 sobre superficie */
+  --success: #34d399;            /* 7,61:1 sobre superficie */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
   --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
@@ -175,7 +200,7 @@ body {
 
 .progress-bar-fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--accent-fill);
   border-radius: 4px;
   transition: width 0.3s ease, background 0.3s;
 }
@@ -187,29 +212,86 @@ body {
 .budget-bar {
   display: flex;
   gap: 8px;
-  font-size: 0.9rem;
+  /* El tamaño y el peso los ponen ya los tres displays de abajo; declarar aquí un
+     font-size sería una cuarta cifra que nadie lee. */
   font-weight: 700;
 }
 
 .budget-item {
   flex: 1;
+  /* min-width: 0 sobreescribe el min-width: auto que traen los flex items: sin
+     esto la caja crece hasta el tamaño de su contenido y un importe largo se
+     sale de la pantalla en vez de recortarse. Ver la nota de #remainingBox. */
+  min-width: 0;
   text-align: center;
-  padding: 8px 4px;
+  /* 6px y no 8px: el número dominante ya ocupa 32px de alto, y el bloque de
+     estado vacío que va después no puede cargar con más. */
+  padding: 6px 4px;
   background: var(--bg);
   border-radius: 12px;
   border: 2px solid transparent;
   transition: var(--transition);
 }
 
-.budget-item.danger { 
-  color: var(--danger); 
-  background: rgba(239, 68, 68, 0.1); 
+.budget-item.danger {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
   border-color: var(--danger);
 }
-.budget-item.warning { 
-  color: var(--warning); 
-  background: rgba(245, 158, 11, 0.1); 
+.budget-item.warning {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
   border-color: var(--warning);
+}
+
+/* ---- Jerarquía de la barra de presupuesto ----
+   Los tres números eran idénticos: mismo font-size, mismo peso, misma
+   etiqueta. Eso es exactamente el "todo al mismo tamaño" que hace que una
+   pantalla parezca un panel barato, porque el ojo no tiene dónde parar.
+   RESTANTE es el único que dice qué hacer a continuación, así que es el
+   dominante: se lleva el 44% del ancho (flex 1,6 de 3,6) y una tipografía
+   de 1,75rem contra 0,8rem de los otros dos.
+   El 2,5x que sirve para una métrica de ancho completo no cabe aquí: a
+   320px de pantalla la caja del dominante mide ~113px útiles, y "$123.45"
+   a 2,5x de 0,8rem (32px) ocupa ~124px, es decir se saldría. Por eso el
+   factor de tamaño se queda en 2,2x y la jerarquía se completa con el ancho
+   y con el peso (800 contra 600).
+   DELIBERADAMENTE no se pone color aquí: el color lo ponen las clases
+   .danger / .warning del box, y un color en el hijo, que tiene más
+   especificidad por id, las pisaría y la alerta se perdería.
+   Para cambiar el dominante basta con intercambiar los dos selectores.
+   OJO con subir estos tamaños: .empty es el último bloque del flujo, así que
+   engordar la barra baja el estado vacío y su texto acaba bajo la barra
+   inferior fija. La holgura se recupera recortando ARRIBA (padding del item),
+   nunca engordando el padding-bottom de body.
+   El clamp() no es un breakpoint (aquí no hay media queries, y no se ha
+   añadido ninguna): es una escala continua porque flex: 1.6 es una PROPORCIÓN
+   y no un mínimo. Medido: a 320px un RESTANTE de "$1234557.89" a 1,75rem se
+   salía de la pantalla por la derecha.
+   nowrap + ellipsis en vez de overflow-wrap: un importe partido en dos líneas
+   ("$1234557" / ".89") empuja la caja hacia abajo y empuja con ella todo lo que
+   viene detrás. Un recorte con puntos suspensivos mantiene la altura y no
+   mueve el resto de la pantalla. Es además lo esperado en un panel.
+   min-width: 0 en .budget-item es lo que hace que el recorte llegue a activarse:
+   un flex item trae min-width: auto, o sea que NUNCA baja del tamaño de su
+   contenido, así que la caja crecía con el número y el texto se salía por la
+   derecha en vez de recortarse. Sin eso, flex: 1.6 no manda sobre nada. */
+#remainingBox {
+  flex: 1.6;
+}
+#remainingDisplay {
+  font-size: clamp(1.3rem, 6.5vw, 1.75rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#budgetDisplay,
+#spentDisplay {
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 /* Sugerencias Rápidas */
@@ -242,7 +324,7 @@ body {
 }
 
 .suggestions-badge {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: white;
   font-size: 0.75rem;
   font-weight: 800;
@@ -250,8 +332,8 @@ body {
   border-radius: 12px;
 }
 
-.suggestions-badge.warning { background: var(--warning); }
-.suggestions-badge.danger { background: var(--danger); }
+.suggestions-badge.warning { background: var(--warning-fill); }
+.suggestions-badge.danger { background: var(--danger-fill); }
 
 .suggestions-bar {
   display: flex;
@@ -293,8 +375,8 @@ body {
 }
 
 .suggestion-chip.pressing {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
   color: white;
 }
 
@@ -400,12 +482,12 @@ input:focus, select:focus {
 .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: white;
 }
 
 .btn-primary:hover {
-  background: var(--accent-light);
+  background: var(--accent-fill-hover);
 }
 
 .btn-secondary {
@@ -421,7 +503,7 @@ input:focus, select:focus {
 }
 
 .btn-danger {
-  background: var(--danger);
+  background: var(--danger-fill);
   color: white;
 }
 
@@ -450,7 +532,7 @@ input:focus, select:focus {
 
 .product-card.bought {
   border-color: var(--success);
-  background: rgba(16, 185, 129, 0.05);
+  background: color-mix(in srgb, var(--success) 6%, transparent);
 }
 
 .product-card.bought .product-name {
@@ -497,14 +579,14 @@ input:focus, select:focus {
 }
 
 .checkbox-wrapper input:checked + .checkbox-visual {
-  background: var(--success);
-  border-color: var(--success);
+  background: var(--success-fill);
+  border-color: var(--success-fill);
   color: white;
 }
 
 .product-card.bought .checkbox-visual {
-  background: var(--success);
-  border-color: var(--success);
+  background: var(--success-fill);
+  border-color: var(--success-fill);
   color: white;
 }
 
@@ -581,15 +663,15 @@ input:focus, select:focus {
 }
 
 .action-btn.edit:hover {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
   color: white;
   transform: scale(1.05);
 }
 
 .action-btn.delete:hover {
-  background: var(--danger);
-  border-color: var(--danger);
+  background: var(--danger-fill);
+  border-color: var(--danger-fill);
   color: white;
   transform: scale(1.05);
 }
@@ -689,7 +771,7 @@ input:focus, select:focus {
 }
 
 .qty-btn:hover {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: white;
   transform: scale(0.95);
 }
@@ -935,7 +1017,7 @@ input:focus, select:focus {
   transition: var(--transition);
 }
 .dot.active {
-  background: var(--accent);
+  background: var(--accent-fill);
   width: 24px;
   border-radius: 4px;
 }
@@ -1099,7 +1181,7 @@ input:focus, select:focus {
 }
 
 .history-delete:hover {
-  background: var(--danger);
+  background: var(--danger-fill);
   color: white;
 }
 
@@ -1145,7 +1227,7 @@ input:focus, select:focus {
 .restore-defaults {
   margin-top: 20px;
   padding: 16px;
-  background: rgba(245, 158, 11, 0.1);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
   border: 1px solid var(--warning);
   border-radius: 12px;
   text-align: center;
@@ -1154,7 +1236,7 @@ input:focus, select:focus {
 .cleanup-section {
   margin-top: 20px;
   padding: 16px;
-  background: rgba(239, 68, 68, 0.1);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
   border: 1px solid var(--danger);
   border-radius: 12px;
   text-align: center;
@@ -1212,7 +1294,7 @@ input:focus, select:focus {
   transition: var(--transition);
   white-space: nowrap;
 }
-.toast-action:hover { background: var(--accent); color: #fff; }
+.toast-action:hover { background: var(--accent-fill); color: #fff; }
 
 /* ========== PRESUPUESTO POR CATEGORÍA ========== */
 .cat-budget-config {
@@ -1279,7 +1361,7 @@ input:focus, select:focus {
 }
 .cat-budget-fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--accent-fill);
   border-radius: 999px;
   transition: width 0.3s ease;
 }

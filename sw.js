@@ -5,7 +5,7 @@
 // Los datos del usuario NO viven aqui (están en localStorage), asi que la cache
 // solo contiene el shell estatico de la app.
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `compralist-${CACHE_VERSION}`;
 
 const SHELL = [

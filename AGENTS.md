@@ -9,11 +9,12 @@ Node was introduced **only for tooling** (tests + icon generation), never as an 
 | Command | What it does |
 | --- | --- |
 | `npm run serve` | Static server on `http://127.0.0.1:4173` (`tests/server.mjs`, zero deps) |
-| `npm test` | Playwright smoke suite (`tests/smoke.spec.js`) |
+| `npm test` | Playwright smoke suite (`tests/smoke.spec.js`, `tests/paleta.spec.js`, `tests/empty-state.spec.js`) |
 | `npx playwright test -g "coma decimal"` | Run one test by name |
 | `npx playwright test --headed --debug` | Watch a single test in a real browser |
 | `$env:PW_CHANNEL="chrome"; npx playwright test` | Run against the **system** Chrome (see below) |
 | `npm run icons` | Regenerate `assets/icon-*.png` after editing the drawing |
+| `npm run audit:css` | Flag classes used in the markup with no CSS rule |
 
 First-time test setup needs network: `npm install && npx playwright install chromium`. Everything else works offline.
 Verification of behaviour is the Playwright suite, not eyeballing the browser.
@@ -116,6 +117,66 @@ espera a la fuente) y una caída de 12 a 35 pruebas en verde es puro ruido de co
   `configBudget_<id>` en el HTML; añade la clave a `CATEGORY_ICONS` / `CATEGORY_COLORS` si hace falta.
 - `normalizeCategory(id)` es la puerta única para Referentializar: nunca devolvería `categories[undefined].color`.
 
+## Paleta: cada color esta medido, y hay DOS tokens por color
+
+Los colores no son "unos colores que verian bien": estan contrastados contra WCAG 2.1 y
+`tests/paleta.spec.js` los comprueba **sobre el documento renderizado**, no sobre el archivo, asi
+que la herencia real (`body.dark` gana sobre `:root`) tambien cuenta. Si tocas un color, corre esa
+spec: si no, el fallo aparece en la pantalla de un usuario.
+
+- **Base neutra: 5 grises** (`--bg`, `--surface`, `--text-primary`, `--text-secondary`,
+  `--border`). Ya cumplia y no se toca: 14,63:1 y 4,76:1. Es la rampa slate de Tailwind.
+- **Cada color cromatico tiene dos tokens**, y esa es la parte que hay que entender:
+
+| Uso | Token | Requisito |
+| --- | --- | --- |
+| Texto, icono, borde | `--accent`, `--danger`, `--warning`, `--success` | >= 4,5:1 **sobre** superficie |
+| Relleno (fondo) | `--accent-fill`, `--danger-fill`, `--warning-fill`, `--success-fill` | >= 4,5:1 del **blanco encima** |
+
+  Son requisitos opuestos y un solo valor no puede cumplir los dos. Por eso en modo oscuro los
+  tokens de texto se aclaran y los de relleno **no**: `#818cf8` da 4,90:1 sobre la superficie
+  oscura (bien para texto) pero el blanco encima cae a 2,98:1 (mal para relleno). Los de relleno
+  son iguales en los dos modos a proposito.
+- **Fallos que havia y se corrigieron** (medidos, no supuestos): aviso `#f59e0b` 2,15:1, exito
+  `#10b981` 2,54:1 y peligro `#ef4444` 3,76:1 en modo claro; acento `#6366f1` 3,27:1 en oscuro; y
+  el hover del boton primario, que ponia `var(--accent-light)` (#818cf8) con texto blanco encima
+  y ya fallaba a 2,98:1.
+- **Los tintes son `color-mix(...)`, no `rgba` fijo.** Habia `rgba(239, 68, 68, 0.1)` y
+  `rgba(245, 158, 11, 0.1)` escritos a mano, que no siguen al token: cambiar `--danger` los
+  desincronizaba en silencio. `color-mix(in srgb, var(--danger) 10%, transparent)` no puede.
+- **`--accent-light` solo queda para el `.press-indicator`** (una barra de 3px sin texto). No lo
+  uses de fondo con texto encima: es un color claro y no llega a 4,5:1 con blanco.
+- El color sigue siendo **estado, no decoracion**: hay 45 usos de `--accent` repartidos por la
+  app. Reducirlos a uno o dos por pantalla es la mejora pendiente, y es un trabajo aparte.
+
+## Jerarquia de la barra de presupuesto
+
+PRESUPUESTO / GASTADO / RESTANTE eran **tres bloques identicos** (mismo `font-size`, mismo peso) y
+`#budgetDisplay`, `#spentDisplay` y `#remainingDisplay` **no tenian ninguna regla propia**. Eso es
+exactamente el "todo al mismo tamano" que hace que una pantalla parezca un panel barato: no hay
+nada a donde mirar. Ahora **RESTANTE manda**: `flex: 1.6` de 3,6 y `clamp(1.3rem, 6.5vw, 1.75rem)`
+contra `0.8rem` de los otros dos, mas peso 800 contra 600.
+
+Cuatro cosas que costaron una vuelta de tuerca:
+
+- **El dominante NO declara `color`.** El color lo ponen `.danger` / `.warning` del box, y un
+  `color` en el hijo, que tiene mas especificidad por id, las pisaria y **la alerta desapareceria
+  sin ningun error en consola**. Hay un test que lo comprueba.
+- **`min-width: 0` en `.budget-item` es obligatorio.** Un flex item trae `min-width: auto`, o sea
+  que nunca baja del tamano de su contenido: la caja crecia con el numero y el texto se salia por
+  la derecha en vez de recortarse. Sin eso, `flex: 1.6` no manda sobre nada.
+- **`flex: 1.6` es una proporcion, no un minimo**, de ahi el `clamp()`. A 320px un RESTANTE de
+  "$1234557.89" a 1,75rem se salia de la pantalla. El `clamp` no es un breakpoint: aqui no hay
+  media queries y no se ha anadido ninguna.
+- **`nowrap` + `text-overflow: ellipsis`, no `overflow-wrap: anywhere`.** Un importe partido en
+  dos lineas ("$1234557" / ".89") empuja la caja hacia abajo y empuja con ella todo lo que viene
+  detras. Recortar mantiene la altura.
+
+**Subir el tamano del dominante tiene un efecto lateral**: `.empty` es el ultimo bloque del flujo,
+asi que engordar la barra baja el estado vacio y su texto acaba **bajo la barra inferior fija**. La
+holgura se recupera recortando ARRIBA (por eso el padding de `.budget-item` es de 6px y no 8px),
+nunca engordando el `padding-bottom` de body.
+
 ## Mandatory helpers (do not bypass these)
 
 Raw `parseFloat` and `categories[key]` were the source of the worst bugs; every value now goes through a normaliser.
@@ -210,6 +271,25 @@ puede lanzar un workflow temporal que lo cree y lo deje como artefacto, como se 
   the file (or count the markers) to confirm the writes landed.
 - Don't template-literal the replacement strings: nested `${...}` and backticks in the generated code will either
   interpolate at script-build time or break the literal. Put the generated code in a separate file and read it.
+- **Count the arguments you pass to your own patch helper.** Calling `aplicar(etiqueta, from, to)` with **four**
+  strings (because the replacement text got split across two array elements) silently drops the fourth. Here that
+  left a CSS comment `/* ...` **unclosed**, so the parser ate everything after it — `.empty` and ~40 rules
+  vanished and 8 tests failed with nonsense errors (`display: block` instead of `flex`). The tell was counting:
+  `/*` appeared 67 times and `*/` only 66. **After any bulk CSS/HTML patch, check that braces and comment
+  delimiters are balanced** (`(css.match(/\{/g)||[]).length` vs `\}`, and `/\*` vs `\*/`). An unbalanced
+  comment is silent: no error, just a truncated stylesheet.
+- **`.gitignore` warns "LF will be replaced by CRLF"**, so these files are **CRLF**. A patch script that
+  anchors on `'\n'` won't match anything and will report `NO ENCONTRADO` — which looks exactly like a wrong
+  anchor. Match with a regex tolerant of both (`/\r?\n/`) instead of giving up on the anchor.
+- **Don't trust a `git stash` round-trip as proof of "I broke it"** until the failing test passes without your
+  changes; that part worked, but only after `git stash pop`, which also prints the whitespace warnings that gave
+  away the CRLF issue above.
+- **`getComputedStyle` returns the STARTING value of a running transition** if you read it in the same tick.
+  `.budget-item` has `transition: all 0.2s`, so adding a class and reading `.color` immediately gives the *old*
+  color and looks like "the CSS didn't apply". Set `el.style.transition = 'none'` first in layout tests.
+- **With `overflow: hidden`, `scrollWidth` still reports the full text width** even when it's being clipped. To
+  detect real overflow compare `getBoundingClientRect()` against the container's rect; use `scrollWidth` only to
+  know *whether* clipping is happening.
 - CSS audit: every class used in the markup **must** have a rule. 22 classes were in use with no rule at all
   (the whole Stats detail block, the suggestions table, the cleanup section), so those sections rendered unstyled.
   Run `npm run audit:css` (→ `tools/audit-css.mjs`).

@@ -8,6 +8,9 @@ playwright-report/
 blob-report/
 .playwright/
 
+# Capturas que genera el panel del navegador al revisar la app
+.openchamber/
+
 # Proyecto Android de Capacitor: lo genera `cap add android` en cada build de
 # GitHub Actions y no se versiona. Así el repo sigue siendo solo la web estática,
 # sin build step, tal y como describe AGENTS.md.
