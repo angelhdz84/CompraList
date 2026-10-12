@@ -19,9 +19,15 @@ import { dirname, join } from 'node:path';
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const leer = (p) => readFileSync(join(raiz, p), 'utf8');
 
-const css = leer('css/style.css');
+const cssBruto = leer('css/style.css');
 const html = leer('index.html');
 const app = leer('js/app.js');
+
+// Los comentarios se quitan ANTES de buscar selectores. Un comentario que
+// menciona un fichero ("app.js lo pinta inline", "tests/_inventario.spec.js")
+// metia .js y .spec en la lista de clases definidas, y el auditor los reportaba
+// como clases sin usar. Los comentarios no son selectores, asi que no se buscan.
+const css = cssBruto.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 // --- clases usadas ---------------------------------------------------------
 // Del HTML estático y también de las cadenas que app.js inyecta con innerHTML,

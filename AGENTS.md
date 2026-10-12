@@ -9,7 +9,7 @@ Node was introduced **only for tooling** (tests + icon generation), never as an 
 | Command | What it does |
 | --- | --- |
 | `npm run serve` | Static server on `http://127.0.0.1:4173` (`tests/server.mjs`, zero deps) |
-| `npm test` | Playwright smoke suite (`tests/smoke.spec.js`, `tests/paleta.spec.js`, `tests/empty-state.spec.js`) |
+| `npm test` | Playwright smoke suite (`tests/smoke.spec.js`, `tests/paleta.spec.js`, `tests/acento.spec.js`, `tests/empty-state.spec.js`) |
 | `npx playwright test -g "coma decimal"` | Run one test by name |
 | `npx playwright test --headed --debug` | Watch a single test in a real browser |
 | `$env:PW_CHANNEL="chrome"; npx playwright test` | Run against the **system** Chrome (see below) |
@@ -153,8 +153,9 @@ spec: si no, el fallo aparece en la pantalla de un usuario.
   desincronizaba en silencio. `color-mix(in srgb, var(--danger) 10%, transparent)` no puede.
 - **`--accent-light` solo queda para el `.press-indicator`** (una barra de 3px sin texto). No lo
   uses de fondo con texto encima: es un color claro y no llega a 4,5:1 con blanco.
-- El color sigue siendo **estado, no decoracion**: hay 45 usos de `--accent` repartidos por la
-  app. Reducirlos a uno o dos por pantalla es la mejora pendiente, y es un trabajo aparte.
+- El acento se usa **solo para acciones y estado activo**, nunca para datos. Ver la seccion
+  siguiente, "Reparto del acento": hay un techo medido por pantalla y `tests/acento.spec.js`
+  lo vigila.
 
 ## Jerarquia de la barra de presupuesto
 
@@ -183,6 +184,48 @@ Cuatro cosas que costaron una vuelta de tuerca:
 asi que engordar la barra baja el estado vacio y su texto acaba **bajo la barra inferior fija**. La
 holgura se recupera recortando ARRIBA (por eso el padding de `.budget-item` es de 6px y no 8px),
 nunca engordando el `padding-bottom` de body.
+
+## Reparto del acento: el color marca ACCIONES y ESTADO, nunca DATOS
+
+**La regla.** `--accent` es para la acción primaria y para el estado activo (pestaña
+seleccionada, barra de progreso, contador). Los **datos** —precios, totales, cifras, importes— van
+en `--text-primary`. La marca tampoco: el logo en negro.
+
+**Por qué está medido y no es opinión.** `.total-price` era de acento y hay **uno por cada
+producto**, así que el acento **escalaba con las filas**: con 4 productos eran 9 acentos solidos en
+la lista, y con 30 serían 36. Un color que se multiplica con los datos deja de ser jerarquía y pasa
+a ser ruido. `tests/acento.spec.js` mide los acentos visibles por pantalla y pone un techo.
+
+| Pantalla | Antes | Después | Qué queda |
+| --- | --- | --- | --- |
+| Lista con 4 productos | 9 | **5** | barra, contador, botón, pestaña |
+| Lista vacía | 5 | **4** | contador, botón, pestaña |
+| Estadísticas | 3 | **0** | ninguno: el donut ya tiene color de categoría |
+| Historial | 2 | **0** | ninguno |
+| Configuración | 2 | **2** | botón secundario + "Guardar Cambios" |
+
+**Lo que se movió a `--text-primary`:** `.total-price`, `.stat-value`, `.donut-value`,
+`.history-amount`, `.logo` y `.logo svg`.
+
+**El estado no se pierde, solo deja de competir con la marca.** El producto comprado sigue
+distinguiéndose por el tachón, por la casilla verde y porque su `.total-price` va en `--success`; y
+eso además evita depender de un par **rojo/verde**, que es justo lo que no se distingue con
+daltonismo. En Stats, `.stat-value-ok` y `.stat-value-warn` ya tiñen por estado.
+
+- **`.donut-chart` NO es acento y su color no viene del CSS.** `renderStats()` lo pinta con un
+  `conic-gradient` **inline** con `categories[cat].color`. Antes la regla CSS tenía un
+  `conic-gradient(var(--accent) 0% 100%)` que **nunca llegó a verse** porque el inline lo pisaba
+  siempre: era código muerto. Ahora debajo solo hay un fondo neutro.
+- Lo que queda de acento en el CSS son 28 usos de `--accent` (antes 45), 12 de `--accent-fill` y
+  10 de `--accent-soft`. **Los 28 son legítimos**: hover, foco, estado activo. Reducirlos más ya no
+  tiene criterio medible, sería gusto.
+
+**Para medirlo bien, tres trampas** (las costó el primer inventario, que dio números falsos):
+1. Los modales **no ocultan** la pantalla de debajo, solo la cubren. Hay que contar **dentro** del
+   `.modal.active`, o el recuento de "pantalla Stats" incluye los precios de la lista.
+2. Los `<use>` del sprite heredan el trazo del `<svg>` y cuentan el mismo acento tres veces. Todo lo
+   que esté **dentro** de un `<svg>` se descarta; el `<svg>` sí cuenta.
+3. El toast vive en el DOM con `opacity: 0`, así que hay que filtrarlo.
 
 ## Mandatory helpers (do not bypass these)
 
@@ -297,6 +340,23 @@ puede lanzar un workflow temporal que lo cree y lo deje como artefacto, como se 
 - **With `overflow: hidden`, `scrollWidth` still reports the full text width** even when it's being clipped. To
   detect real overflow compare `getBoundingClientRect()` against the container's rect; use `scrollWidth` only to
   know *whether* clipping is happening.
+- **Don't write a test that compares two full-page measurements.** `acento: el acento no crece con las filas`
+  medía la pantalla entera con 4 productos y con 30 y comparaba los dos números. Flakeó: las dos
+  mediciones comparten barra de progreso, badge y nav, así que un elemento que aún no ha pintado en
+  una de ellas hace que falle sin que haya cambiado nada. **Measure the region that actually grows**
+  (aquí `.product-list`) and leave the shared chrome out of the comparison. A `--retries=0` run en
+  bucle es la forma de demostrar que el test es estable, no de confiar en que lo sea.
+- **Variables de Node no existen dentro de `page.evaluate`**: la función corre en el navegador y
+  solo ve lo que se le pase como segundo argumento. `NOMBRES is not defined` es el síntoma.
+- **Un `grep ... | -replace '\s+',' '` APLANA las reglas multilínea y engaña.** Al buscar reglas CSS
+  para modificarlas, `background: var(--star); color: white;` parecía estar en una línea cuando en
+  el fichero eran tres. Para parchear, lee la regla exacta con contexto y ancla con los saltos de
+  línea reales.
+- **`tools/audit-css.mjs` leía los comentarios del CSS como si fueran selectores**, así que un
+  comentario que menciona un fichero (`app.js lo pinta inline`) metía `.js` y `.spec` en la lista de
+  clases definidas y los reportaba como sin usar. Ahora quita los comentarios antes de buscar. Si
+  añades comentarios al CSS que mencionen nombres con punto, la segunda lista del auditor se
+  ensucia sola.
 - CSS audit: every class used in the markup **must** have a rule. 22 classes were in use with no rule at all
   (the whole Stats detail block, the suggestions table, the cleanup section), so those sections rendered unstyled.
   Run `npm run audit:css` (→ `tools/audit-css.mjs`).

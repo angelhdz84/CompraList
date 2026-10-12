@@ -50,7 +50,10 @@ jobs:
       # sourceCompatibility/targetCompatibility = VERSION_21 y con 17 el build
       # muere en :capacitor-android:compileReleaseJavaWithJavac con
       # "error: invalid source release: 21".
-      - uses: actions/setup-java@v4
+      # v5 y no v4: GitHub marca v4 como deprecada ("no longer receive updates").
+      # La clave `java-version` no ha cambiado entre ambas, asi que el bloque es
+      # identico salvo el major.
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'

@@ -109,13 +109,13 @@ body {
   gap: 8px;
   font-size: 1.2rem;
   font-weight: 800;
-  color: var(--accent);
+  color: var(--text-primary);
 }
 
 .logo svg {
   width: 28px;
   height: 28px;
-  stroke: var(--accent);
+  stroke: var(--text-primary);
   fill: none;
   stroke-width: 2;
   stroke-linecap: round;
@@ -799,10 +799,25 @@ input:focus, select:focus {
   text-transform: uppercase;
 }
 
+/* ---- Reparto del acento ----
+   REGLA: el acento marca ACCIONES y ESTADO ACTIVO. Los DATOS y la marca van
+   en el color de lectura. Antes estos cinco selectores pintaban de acento un
+   dato por cada fila de la lista, y como el numero de filas no tiene tope,
+   una pantalla de 30 productos llevaba 30 acentos: el color deja de ser una
+   jerarquia y pasa a ser ruido de fondo.
+   Medido antes/despues con tests/acento.spec.js (pantalla LISTA con 4
+   productos: 9 acentos -> 4).
+   El estado NO se pierde, solo deja de competir con la marca:
+     - producto comprado: el tachón, la casilla verde y .total-price en
+       --success, que encima es un par rojo/verde, mal para daltonismo
+     - stats: .stat-value-ok / .stat-value-warn ya tiñen por estado
+     - el donut NO es acento: app.js lo pinta con un conic-gradient INLINE de
+       los colores de categoria, asi que por debajo solo va un fondo neutro */
+
 .total-price {
   font-weight: 900;
   font-size: 1.5rem;
-  color: var(--accent);
+  color: var(--text-primary);
 }
 
 .product-card.bought .total-price {
@@ -1057,7 +1072,7 @@ input:focus, select:focus {
 .stat-value {
   font-size: 2rem;
   font-weight: 900;
-  color: var(--accent);
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
@@ -1080,7 +1095,10 @@ input:focus, select:focus {
   height: 200px;
   border-radius: 50%;
   position: relative;
-  background: conic-gradient(var(--accent) 0% 100%);
+  /* El color del donut lo pone app.js en un style inline con un conic-gradient
+     de los colores de categoria. Antes aqui habia un conic-gradient(var(--accent))
+     que NUNCA llego a verse porque el inline lo pisaba siempre. */
+  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1102,7 +1120,7 @@ input:focus, select:focus {
 .donut-value {
   font-size: 1.8rem;
   font-weight: 900;
-  color: var(--accent);
+  color: var(--text-primary);
 }
 
 .donut-label {
@@ -1167,7 +1185,7 @@ input:focus, select:focus {
 .history-amount {
   font-weight: 900;
   font-size: 1.2rem;
-  color: var(--accent);
+  color: var(--text-primary);
   margin-right: 12px;
 }
 
