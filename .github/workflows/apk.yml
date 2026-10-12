@@ -128,22 +128,29 @@ jobs:
           # (tools/make-icons.mjs), en forma "launcher": fondo a sangre y simbolo
           # al 66%, porque el launcher aplica su propia mascara encima. Si se
           # pusiera el fondo redondeado se veria doble redondeo.
-          node tools/make-icons.mjs --launcher android/app/src/main/res
-
-          # Y el icono adaptativo de Android (API 26+), que es un vectorial mas un
-          # color de fondo en lugar de un raster. Sin esto, el launcher aplica su
-          # mascara al PNG y el icono queda encogido dentro de un borde.
+                    # OJO: el borrado va PRIMERO, antes de generar y antes de copiar. La
+          # plantilla de Capacitor 7.4.3 trae sus propios iconos y, entre ellos,
+          # drawable-v24/ic_launcher_foreground.xml; una carpeta con sufijo de
+          # version tiene PRIORIDAD sobre drawable/ en API 24+, asi que sin
+          # borrarla el fondo seria el nuestro pero el simbolo el logo de
+          # Capacitor. Y si el borrado fuera DESPUES de generar, se llevaria por
+          # delante los PNG del generador y el APK saldria con CERO iconos
+          # propios. El build pasa igual; solo se ve al instalar. Costó dos.
           #
-          # OJO: hay que BORRAR los iconos de la plantilla ANTES de copiar. No solo
-          # porque compitan: la plantilla trae drawable-v24/ic_launcher_foreground.xml,
-          # y una carpeta con sufijo de version tiene PRIORIDAD sobre drawable/ en
-          # API 24+. Sin borrarla, el fondo seria el nuestro pero el simbolo seria
-          # el logo de Capacitor, y eso no se ve hasta que lo instalas en el movil.
+          # Es un script y no un `find -delete` porque hace falta probarlo, y
+          # `find` no existe en Windows. tests/marca.spec.js monta una estructura
+          # de recursos falsa, ejecuta los tres pasos en orden y comprueba el
+          # resultado.
           #
-          # Los ficheros viven en tools/android-icons/ y no en assets/ a proposito:
+          # Los XML viven en tools/android-icons/ y no en assets/ a proposito:
           # assets/ se copia entero a www/ para el escenario web, y tres XML que la
           # web no usa no tienen por que acabar en el APK.
-          find android/app/src/main/res -name 'ic_launcher*' -delete
+          node tools/purge-launcher-icons.mjs android/app/src/main/res
+
+          # Los PNG: mismo rasterizador que los de la web, en forma "launcher".
+          node tools/make-icons.mjs --launcher android/app/src/main/res
+
+          # Y el icono adaptativo (API 26+), que es un vectorial mas un color.
           cp tools/android-icons/ic_launcher_foreground.xml android/app/src/main/res/drawable/
           cp tools/android-icons/ic_launcher_background.xml android/app/src/main/res/values/
           mkdir -p android/app/src/main/res/mipmap-anydpi-v26
