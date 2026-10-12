@@ -118,6 +118,20 @@ antes de compilar:
   con `Error: The string "--" is not permitted within comments`: un error que **no menciona los
   comentarios**, así que cuesta leer. Costó un build. `tests/marca.spec.js` lo comprueba.
   En YAML y en CSS los comentarios sí admiten `--`.
+- **Hay que BORRAR los iconos que trae la plantilla antes de copiar los nuestros.** La de Capacitor
+  7.4.3 trae `mipmap-*dpi/ic_launcher*.png`, `mipmap-anydpi-v26/ic_launcher*.xml`,
+  `values/ic_launcher_background.xml`, `drawable/ic_launcher_background.xml` y, la que más se cuela,
+  **`drawable-v24/ic_launcher_foreground.xml`**: una carpeta con sufijo de versión tiene **prioridad
+  sobre `drawable/` en API 24+**, así que sin borrarla el fondo acaba siendo el nuestro pero el
+  símbolo el logo de Capacitor. El build pasa igual y solo se ve en el móvil. El workflow hace
+  `find android/app/src/main/res -name 'ic_launcher*' -delete` antes de copiar.
+  Se detectó extrayendo el APK compilado y buscando el `pathData` del vectorial dentro.
+- **Para comprobar si un PNG llegó al APK, mira el CONTENIDO, no el hash.** AAPT2 **re-codifica** los
+  PNG al empaquetarlos (crunch) y convierte varios a **indexed** (`colorType 3`), así que los bytes
+  dejan de coincidir. Comparar hashes dio 4 de 10 falsos negativos y parecía que había entrado
+  la mitad. Lo que funciona es decodificar (los cinco filtros de línea y los modos 0/2/3/4/6, con
+  paleta) y mirar el color del fondo y la proporción de blanco. Un lector que solo sepa RGB
+  descarta los indexed en silencio y da la misma conclusión falsa.
 
 ### Los iconos de categoría (los del sprite)
 

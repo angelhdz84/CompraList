@@ -134,9 +134,16 @@ jobs:
           # color de fondo en lugar de un raster. Sin esto, el launcher aplica su
           # mascara al PNG y el icono queda encogido dentro de un borde.
           #
+          # OJO: hay que BORRAR los iconos de la plantilla ANTES de copiar. No solo
+          # porque compitan: la plantilla trae drawable-v24/ic_launcher_foreground.xml,
+          # y una carpeta con sufijo de version tiene PRIORIDAD sobre drawable/ en
+          # API 24+. Sin borrarla, el fondo seria el nuestro pero el simbolo seria
+          # el logo de Capacitor, y eso no se ve hasta que lo instalas en el movil.
+          #
           # Los ficheros viven en tools/android-icons/ y no en assets/ a proposito:
           # assets/ se copia entero a www/ para el escenario web, y tres XML que la
-          # web no usa no tienen por que acabar dentro del APK.
+          # web no usa no tienen por que acabar en el APK.
+          find android/app/src/main/res -name 'ic_launcher*' -delete
           cp tools/android-icons/ic_launcher_foreground.xml android/app/src/main/res/drawable/
           cp tools/android-icons/ic_launcher_background.xml android/app/src/main/res/values/
           mkdir -p android/app/src/main/res/mipmap-anydpi-v26

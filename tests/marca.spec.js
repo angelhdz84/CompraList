@@ -223,3 +223,19 @@ test('los iconos del launcher se generan en las cinco densidades', () => {
   // a sangre y con el símbolo en la zona segura.
   expect(gen, 'la forma launcher tiene que usar la zona segura').toContain("forma === 'launcher' ? 0.66");
 });
+
+test('el workflow borra los iconos de la plantilla antes de copiar los suyos', () => {
+  // La plantilla de Capacitor 7.4.3 trae sus propios iconos, entre ellos
+  // drawable-v24/ic_launcher_foreground.xml. Una carpeta con sufijo de versión
+  // tiene PRIORIDAD sobre drawable/ en API 24+, así que si no se borran, el
+  // fondo sería el nuestro pero el símbolo sería el logo de Capacitor. Pasó: se
+  // detectó extrayendo el APK compilado y buscando el pathData del vectorial.
+  const yml = readFileSync(join(raiz, '.github', 'workflows', 'apk.yml'), 'utf8');
+  expect(yml, 'hay que borrar los iconos de la plantilla').toMatch(/find\s+android\/app\/src\/main\/res\s+-name\s+'ic_launcher\*'\s+-delete/);
+  // Y el borrado tiene que ir ANTES de copiar los XML nuevos.
+  const borrar = yml.search(/-name 'ic_launcher\*' -delete/);
+  const copiar = yml.search(/cp tools\/android-icons\/ic_launcher_foreground\.xml/);
+  expect(borrar, 'no se encuentra el find -delete').toBeGreaterThan(-1);
+  expect(copiar, 'no se encuentra el cp del foreground').toBeGreaterThan(-1);
+  expect(borrar, 'el borrado tiene que ir antes del cp, o se borra lo recien copiado').toBeLessThan(copiar);
+});
