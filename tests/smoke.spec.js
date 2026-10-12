@@ -749,7 +749,7 @@ test.describe('iconos', () => {
       const ACCION = ['trash', 'pencil', 'plus', 'minus', 'check', 'circle', 'refresh', 'share',
         'download', 'upload', 'gear', 'calendar', 'wallet', 'chart', 'history', 'pin', 'warning',
         'save', 'broom', 'sun', 'moon', 'pencil-line', 'list', 'gauge', 'close', 'plus-circle',
-        'layers', 'up', 'down', 'swap', 'chevron'];
+        'layers', 'up', 'down', 'swap', 'chevron', 'checklist'];
       return [...document.querySelectorAll('.svg-sprite symbol[id^="i-"]')]
         .map((s) => s.id.slice(2))
         .filter((n) => !ACCION.includes(n) && !CATEGORY_ICONS.includes(n));

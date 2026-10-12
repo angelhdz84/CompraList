@@ -116,6 +116,36 @@ jobs:
           npx --yes "@capacitor/cli@$CAPACITOR_VERSION" add android
           npx --yes "@capacitor/cli@$CAPACITOR_VERSION" sync android
 
+      - name: Iconos del launcher
+        run: |
+          set -euo pipefail
+          # OJO: cambiar assets/icon.svg NO cambia lo que se ve en la pantalla de
+          # inicio del movil. Los iconos del launcher son los res/mipmap-*, que
+          # vienen de la plantilla de Capacitor con el icono POR DEFECTO. Hay que
+          # sobrescribirlos aqui.
+          #
+          # Los PNG se generan con el mismo rasterizador que los de la web
+          # (tools/make-icons.mjs), en forma "launcher": fondo a sangre y simbolo
+          # al 66%, porque el launcher aplica su propia mascara encima. Si se
+          # pusiera el fondo redondeado se veria doble redondeo.
+          node tools/make-icons.mjs --launcher android/app/src/main/res
+
+          # Y el icono adaptativo de Android (API 26+), que es un vectorial mas un
+          # color de fondo en lugar de un raster. Sin esto, el launcher aplica su
+          # mascara al PNG y el icono queda encogido dentro de un borde.
+          #
+          # Los ficheros viven en tools/android-icons/ y no en assets/ a proposito:
+          # assets/ se copia entero a www/ para el escenario web, y tres XML que la
+          # web no usa no tienen por que acabar dentro del APK.
+          cp tools/android-icons/ic_launcher_foreground.xml android/app/src/main/res/drawable/
+          cp tools/android-icons/ic_launcher_background.xml android/app/src/main/res/values/
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+          cp tools/android-icons/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          cp tools/android-icons/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+          echo "--- iconos del launcher ---"
+          find android/app/src/main/res -name 'ic_launcher*' | sort
+
       - name: Fijar el id de aplicacion
         run: |
           set -euo pipefail

@@ -9,11 +9,12 @@ Node was introduced **only for tooling** (tests + icon generation), never as an 
 | Command | What it does |
 | --- | --- |
 | `npm run serve` | Static server on `http://127.0.0.1:4173` (`tests/server.mjs`, zero deps) |
-| `npm test` | Playwright smoke suite (`tests/smoke.spec.js`, `tests/paleta.spec.js`, `tests/acento.spec.js`, `tests/empty-state.spec.js`) |
+| `npm test` | Playwright suite (`tests/smoke.spec.js`, `tests/paleta.spec.js`, `tests/acento.spec.js`, `tests/marca.spec.js`, `tests/empty-state.spec.js`) |
 | `npx playwright test -g "coma decimal"` | Run one test by name |
 | `npx playwright test --headed --debug` | Watch a single test in a real browser |
 | `$env:PW_CHANNEL="chrome"; npx playwright test` | Run against the **system** Chrome (see below) |
 | `npm run icons` | Regenerate `assets/icon-*.png` after editing the drawing |
+| `npm run icons -- --launcher android/app/src/main/res` | The 10 PNG for the Android launcher (the workflow does this) |
 | `npm run audit:css` | Flag classes used in the markup with no CSS rule |
 
 First-time test setup needs network: `npm install && npx playwright install chromium`. Everything else works offline.
@@ -72,6 +73,49 @@ espera a la fuente) y una caída de 12 a 35 pruebas en verde es puro ruido de co
 
 ## Iconos: sprite SVG, cero emojis
 
+### La marca vive en CUATRO ficheros, y tienen que decir lo mismo
+
+Cambiar uno sin los otros es como mínimo un icono raro y como máximo un móvil con el logo de
+Capacitor. Son:
+
+| Dónde | Qué es | Quién lo usa |
+| --- | --- | --- |
+| `assets/icon.svg` | el fuente, viewBox 512 | web, PWA, apple-touch-icon |
+| `tools/make-icons.mjs` → `assets/icon-*.png` | **los rasteriza a mano** | PWA (192, 512, maskable) |
+| `<symbol id="i-checklist">` | el mismo dibujo en viewBox 24 | el **logo de la cabecera**, dentro de la app |
+| `tools/android-icons/*.xml` | el mismo dibujo en vectorial | el **icono del launcher** en Android |
+
+Dibujo de referencia, en coordenadas de un lienzo de 512: rectángulo `146,132 220x256 rx34`, trazo
+`32`, check en `(206,264) (244,302) (318,212)`.
+
+**`tests/marca.spec.js` es el guardián, y mira PÍXELES, no cadenas.** Ya pasó: comparar el texto de
+los ficheros daba "ok" mientras el generador usaba un portapapeles más ancho que el SVG
+(`0,211-0,789` frente a `0,285-0,715`), así que los dos iconos se veían de distinto tamaño y nadie lo
+notaba. El test decodifica el PNG y comprueba píxeles concretos de los cuatro bordes y de los dos
+segmentos del check. Si cambias la geometría, cambia los cuatro ficheros y corre esa spec.
+
+### El icono del launcher de Android NO es `assets/icon.svg`
+
+Es el punto que más sorprende y el que más cuesta: los iconos de la pantalla de inicio son los
+`res/mipmap-*` de `android/`, que **vienen de la plantilla de Capacitor con el icono por defecto**.
+Aunque `android/` esté en `.gitignore` y el repo sea "solo web", el workflow genera y copia los iconos
+antes de compilar:
+
+- `node tools/make-icons.mjs --launcher android/app/src/main/res` escribe los 10 PNG (cinco
+  densidades × `ic_launcher` y `ic_launcher_round`) en forma **launcher**: fondo **a sangre** y símbolo
+  al 66%. A sangre porque el launcher aplica su propia máscara encima y si el fondo también fuese
+  redondeado se vería doble redondeo. Los ficheros XML del icono adaptativo (API 26+) se copian desde
+  `tools/android-icons/`.
+- Los XML viven en `tools/android-icons/` y **no** en `assets/` a propósito: `assets/` se copia entero
+  a `www/` para el escenario web, y tres XML que la web no usa no tienen por qué acabar en el APK.
+- **Nada de heredocs en el `run:` del YAML.** Bloques `cat > f <<'EOF'` dentro de un escalar literal
+  son frágiles y hay que mantener el dibujo sincronizado en dos sitios. Los ficheros se versionan y
+  el workflow solo hace `cp`.
+- El color de fondo del icono de Android (`#4f46e5`) es el `--accent` de `css/style.css`. Si cambias
+  el acento, cambia también `tools/android-icons/ic_launcher_background.xml`.
+
+### Los iconos de categoría (los del sprite)
+
 - Todos los iconos viven en un **sprite inline** al principio de `<body>` de `index.html` (`<symbol id="i-*">`), no en un
   archivo externo. A propósito: los `<use>` se resuelven en el documento, así que no hay `fetch` y la app sigue
   funcionando abierta con `file://` y sin red.
@@ -81,11 +125,9 @@ espera a la fuente) y una caída de 12 a 35 pruebas en verde es puro ruido de co
   `.icon` pinta con `fill:none; stroke:currentColor`, así que hereda el color del contexto sin CSS extra.
 - **Los ids del sprite son ASCII, siempre.** La regex de `icon()` no acepta `ñ` ni otros acentos, así que un
   símbolo `id="i-pañuelos"` existe pero *nunca* se puede usar: `icon()` devuelve el `tag` en silencio y no falla
-  nada. Se coló uno y solo se vio al comparar el sprite contra `CATEGORY_ICONS`; por eso hay tests que
-  comprueban que ningún id lleva acentos y que todo símbolo no-de-UI está en el selector. Sin acentos:
-  `platano`, `jamon`, `panuelos`, `refresco`.
+  nada. Sin acentos: `platano`, `jamon`, `panuelos`, `refresco`.
 - El sprite mezcla dos clases de icono y no deben confundirse: los **de acción** (los de los botones:
-  `trash`, `pencil`, `plus`, `chevron`…) y los **de categoría** (los que ofrece el selector, ~200). Los de
+  `trash`, `pencil`, `plus`, `chevron`, `checklist`…) y los **de categoría** (los que ofrece el selector, ~200). Los de
   acción no van en `CATEGORY_ICONS` a propósito; cualquier otro símbolo sí, o es un dibujo inalcanzable.
 - `showToast()` y `setModalTitle()` escriben **HTML** (no `textContent`) porque los mensajes llevan icono. Todo lo que
   se interpola ahí tiene que venir de `icon()` o de un `label` ya escapado.

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Icono adaptativo de Android (foreground), versionado junto al generador en vez
+  de en el workflow: los heredocs dentro de un bloque YAML `run:` son fragiles y
+  duplicar el dibujo aqui y en el yml obliga a mantenerlos sincronizados.
+
+  MISMO DIBUJO que assets/icon.svg y que drawIcon() en tools/make-icons.mjs,
+  en el viewBox de 24 del sprite de index.html. Si cambias uno, cambia los tres.
+
+  El launcher de Android recorta esta capa y la centra, asi que el simbolo va
+  con aire de sobra: ocupa del 27% al 75% del lienzo.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Portapapeles sin clip: x 6,84 -> 17,15; y 6,19 -> 18,19; radio 1,59 -->
+    <path
+        android:pathData="M6.84,6.19 h10.31 v12 h-10.31 z"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Check grande: de (9.66,12.38) a (14.91,9.94) pasando por (11.44,14.16) -->
+    <path
+        android:pathData="M9.66,12.38 L11.44,14.16 L14.91,9.94"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

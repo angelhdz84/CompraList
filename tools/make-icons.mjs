@@ -103,52 +103,70 @@ function strokePolyline(c, pts, halfWidth, rgb) {
   void s;
 }
 
-function arcPoints(cx, cy, rx, ry, a0, a1, steps = 48) {
-  const out = [];
-  for (let i = 0; i <= steps; i++) {
-    const a = a0 + ((a1 - a0) * i) / steps;
-    out.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]);
+/**
+ * Contorno de rectángulo redondeado. Es la MISMA función de distancia con signo que
+ * usa fillRoundRect, pero con valor absoluto: la cobertura sale de la distancia al
+ * borde, no de si el punto está dentro. Comprobado que no rellena el interior
+ * mientras r > halfWidth, que es el caso del icono.
+ */
+function strokeRoundRect(c, x0, y0, w, h, r, halfWidth, rgb) {
+  const x1 = x0 + w;
+  const y1 = y0 + h;
+  const pad = halfWidth + 1.5;
+  for (let y = Math.floor(y0 - pad); y <= Math.ceil(y1 + pad); y++) {
+    for (let x = Math.floor(x0 - pad); x <= Math.ceil(x1 + pad); x++) {
+      const px = x + 0.5;
+      const py = y + 0.5;
+      const dx = Math.max(x0 + r - px, 0, px - (x1 - r));
+      const dy = Math.max(y0 + r - py, 0, py - (y1 - r));
+      const d = Math.abs(Math.hypot(dx, dy) - r);
+      const cov = Math.max(0, Math.min(1, halfWidth - d + 0.5));
+      if (cov > 0) blend(c, x, y, rgb, cov);
+    }
   }
-  return out;
 }
 
 // --------------------------------------------------------------------- dibujo
 
 /**
- * Dibuja la bolsa de compra.
- * @param scale 1 = ocupa todo el lienzo; menor = centrado con margen (maskable).
+ * Dibuja el simbolo: un portapapeles sin clip con un check grande dentro.
+ *
+ * Decisiones, todas medidas mirando el icono a 48px y 36px (el tamano real en el
+ * launcher) en vez de a 512:
+ *  - SIN clip. El del dibujo anterior era lo primero que desaparecia a ese
+ *    tamano y ademas metia un trazo mas que noidia a nada.
+ *  - Trazo de 32/512 = 6,25% de ancho, que es lo que se mantiene legible a 36px.
+ *  - Check grande y centrado: es lo que dice lo que hace la app, y es la unica
+ *    forma de que un rectangulo con check no sea "un icono mas".
+ *
+ * OJO: estas coordenadas son las MISMAS que assets/icon.svg y que el
+ * <symbol id="i-checklist"> de index.html, solo que en unidades 0..1 del lienzo
+ * en vez de sobre 512. Están unificadas a propósito: cuando el generador usó un
+ * portapapeles más ancho que el SVG (0,211-0,789 frente a 0,285-0,715), los dos
+ * iconos se veían de distinto tamaño y nada lo detectaba, porque comparar
+ * cadenas de texto no dice nada de geometría. tests/marca.spec.js mira los píxeles.
+ *
+ *   rectángulo: 146,132 -> 366,388   (trazo 32, radio 34)
+ *   check:      (206,264) (244,302) (318,212)
  */
-function drawBag(c, scale) {
+function drawIcon(c, scale) {
   const S = c.size;
-  const U = (v) => (0.5 + (v - 0.5) * scale) * S;   // unidad 0..1 -> px
-  const L = (v) => v * scale * S;                    // longitud -> px
+  const U = (v) => (0.5 + (v - 0.5) * scale) * S;
+  const L = (v) => v * scale * S;
 
-  // Sombra sutil bajo la bolsa para que no quede plana sobre el fondo.
-  // (solo un leve oscurecido, sin librerias)
+  const hw = L(32 / 512);                 // semiancho del trazo (stroke-width 32)
+  const x0 = U(146 / 512), y0 = U(132 / 512);
+  const w = L(220 / 512), h = L(256 / 512);
+  const r = L(34 / 512);
 
-  const hw = L(0.030);
-  const P = (x, y) => [U(x), U(y)];
+  strokeRoundRect(c, x0, y0, w, h, r, hw, WHITE);
 
-  // Contorno: (6,2) -> (3,6) -> (3,20) -> fondo redondeado -> (21,20) -> (21,6) -> (18,2)
-  const outline = [
-    P(6 / 24, 2 / 24), P(3 / 24, 6 / 24), P(3 / 24, 20 / 24),
-  ];
-  // esquina inferior izquierda
-  outline.push(...arcPoints(U(5 / 24), U(20 / 24), L(2 / 24), L(2 / 24), Math.PI, Math.PI / 2, 8)
-    .map(([x, y]) => [x, y]));
-  outline.push(P(19 / 24, 22 / 24));
-  outline.push(...arcPoints(U(19 / 24), U(20 / 24), L(2 / 24), L(2 / 24), -Math.PI / 2, 0, 8)
-    .map(([x, y]) => [x, y]));
-  outline.push(P(21 / 24, 6 / 24), P(18 / 24, 2 / 24));
-
-  strokePolyline(c, outline, hw, WHITE);
-
-  // Tapa: (3,6) -> (21,6)
-  strokePolyline(c, [P(3 / 24, 6 / 24), P(21 / 24, 6 / 24)], hw, WHITE);
-
-  // Asa: semicírculo superior centrada en (12,10) radio 4
-  const handle = arcPoints(U(12 / 24), U(10 / 24), L(4 / 24), L(4 / 24), Math.PI, 2 * Math.PI, 40);
-  strokePolyline(c, handle, hw * 0.78, WHITE);
+  // Check: tres puntos; el redondeo de las uniones lo da el propio trazo.
+  strokePolyline(c, [
+    [U(206 / 512), U(264 / 512)],
+    [U(244 / 512), U(302 / 512)],
+    [U(318 / 512), U(212 / 512)],
+  ], hw, WHITE);
 }
 
 /** Reduce el canvas supersampleado al tamaño final con promediado de caja. */
@@ -234,29 +252,62 @@ function encodePng(c) {
 
 // -------------------------------------------------------------------- salida
 
-function render(size, { maskable = false } = {}) {
+/**
+ * Tres formas, y no son caprichos:
+ *  - any:     fondo redondeado. Es la web, el PWA y el apple-touch-icon.
+ *  - maskable: fondo a sangre y simbolo al 62%. El sistema recorta.
+ *  - launcher: fondo a sangre y simbolo al 66%. Es lo que consume Android en
+ *              los mipmap-*: ahi el fondo redondeado se veria doble redondeado
+ *              porque el launcher aplica su propia mascara encima, y el simbolo
+ *              tiene que caber en la zona segura (66% en Android).
+ */
+function render(size, { forma = 'any' } = {}) {
   const hi = makeCanvas(size * SS);
-  if (maskable) {
-    // Maskable: fondo a sangre (el sistema recorta), logo al 62% (safe zone).
-    fillRoundRect(hi, 0, 0, hi.size, hi.size, 0, INDIGO);
-    drawBag(hi, 0.62);
-  } else {
+  if (forma === 'any') {
     fillRoundRect(hi, 0, 0, hi.size, hi.size, hi.size * 0.22, INDIGO);
-    drawBag(hi, 0.86);
+    drawIcon(hi, 1);
+  } else {
+    fillRoundRect(hi, 0, 0, hi.size, hi.size, 0, INDIGO);
+    drawIcon(hi, forma === 'launcher' ? 0.66 : 0.62);
   }
   return downsample(hi, SS);
 }
 
+const png = (size, forma) => encodePng(render(size, { forma }));
+
 mkdirSync(OUT, { recursive: true });
 
-const targets = [
-  { file: 'icon-192.png', size: 192 },
-  { file: 'icon-512.png', size: 512 },
-  { file: 'icon-maskable-512.png', size: 512, maskable: true },
-];
+const args = process.argv.slice(2);
 
-for (const t of targets) {
-  const png = encodePng(render(t.size, { maskable: t.maskable }));
-  writeFileSync(join(OUT, t.file), png);
-  console.log(`ok     ${t.file} (${t.size}x${t.size}, ${png.length} bytes)`);
+// Modo launcher: genera las cinco densidades que espera android/app/src/main/res.
+// El workflow las copia ahi, porque android/ no se versiona y el repo es solo web.
+if (args[0] === '--launcher') {
+  const destino = args[1] || OUT;
+  const DENSIDADES = [
+    ['mipmap-mdpi', 48],
+    ['mipmap-hdpi', 72],
+    ['mipmap-xhdpi', 96],
+    ['mipmap-xxhdpi', 144],
+    ['mipmap-xxxhdpi', 192],
+  ];
+  for (const [densidad, size] of DENSIDADES) {
+    const dir = join(destino, densidad);
+    mkdirSync(dir, { recursive: true });
+    for (const nombre of ['ic_launcher.png', 'ic_launcher_round.png']) {
+      const buf = png(size, 'launcher');
+      writeFileSync(join(dir, nombre), buf);
+      console.log(`ok     ${densidad}/${nombre} (${size}x${size}, ${buf.length} bytes)`);
+    }
+  }
+} else {
+  const targets = [
+    { file: 'icon-192.png', size: 192 },
+    { file: 'icon-512.png', size: 512 },
+    { file: 'icon-maskable-512.png', size: 512, forma: 'maskable' },
+  ];
+  for (const t of targets) {
+    const buf = png(t.size, t.forma || 'any');
+    writeFileSync(join(OUT, t.file), buf);
+    console.log(`ok     ${t.file} (${t.size}x${t.size}, ${buf.length} bytes)`);
+  }
 }

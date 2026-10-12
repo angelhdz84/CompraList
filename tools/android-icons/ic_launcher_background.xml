@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      El --accent de css/style.css (medido en 4,5:1 sobre blanco). Si cambias el
+      acento de la app, hay que cambiarlo aqui tambien: el icono del launcher y
+      el de la web son el mismo color de marca.
+    -->
+    <color name="ic_launcher_background">#4f46e5</color>
+</resources>
