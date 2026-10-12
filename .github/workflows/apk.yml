@@ -44,21 +44,28 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # JDK 21, no 17: el módulo capacitor-android declara
       # sourceCompatibility/targetCompatibility = VERSION_21 y con 17 el build
       # muere en :capacitor-android:compileReleaseJavaWithJavac con
       # "error: invalid source release: 21".
-      # v5 y no v4: GitHub marca v4 como deprecada ("no longer receive updates").
-      # La clave `java-version` no ha cambiado entre ambas, asi que el bloque es
-      # identico salvo el major.
-      - uses: actions/setup-java@v5
+      # v6 y no v4: GitHub marca v4 como deprecada ("no longer receive updates").
+      # La clave `java-version` no ha cambiado entre las versiones, asi que el
+      # bloque es identico salvo el major.
+      # OJO: hay DOS avisos distintos y se encadenan. Primero "setup-java v4 is
+      # deprecated"; al subirlo aparece "Node.js 20 is deprecated ... actions
+      # pointing to Node 20 are being forced to run on Node.js 24". Ese segundo
+      # es de las CINCO actions del workflow, no solo de esta. Los majors actuales
+      # (checkout v7, setup-java v6, setup-node v7, setup-android v4,
+      # upload-artifact v7) ya usan node24, asi que subir solo una deja el aviso
+      # a medias y no se ve si el problema era de esa o de las otras.
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
 
@@ -67,8 +74,11 @@ jobs:
       # paquete "tools" ya no existe en los cmdline-tools actuales (16.0); falla
       # con "Warning: Failed to find package 'tools'" y tumba todo el build. Se
       # pasan solo los paquetes que existen hoy.
+      # Comprobado en el action.yml de v4: `packages` SIGUE con
+      # default: 'platform-tools', o sea que la trampa de arriba no se ha
+      # resuelto sola al subir de major. Hay que seguir pasandolo explicito.
       - name: Instalar Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
@@ -230,7 +240,7 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           echo "APK firmado correctamente"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: compralist-apk
           path: android/app/build/outputs/apk/release/*.apk

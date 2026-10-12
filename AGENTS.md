@@ -227,6 +227,36 @@ daltonismo. En Stats, `.stat-value-ok` y `.stat-value-warn` ya tiñen por estado
    que esté **dentro** de un `<svg>` se descarta; el `<svg>` sí cuenta.
 3. El toast vive en el DOM con `opacity: 0`, así que hay que filtrarlo.
 
+## Versions de las actions del workflow (y el aviso que sale en cadena)
+
+Los majors actuales, todos con `runs.using: node24`:
+
+| Action | Major | Antes |
+| --- | --- | --- |
+| `actions/checkout` | v7 | v4 |
+| `actions/setup-java` | v6 | v4 |
+| `actions/setup-node` | v7 | v4 |
+| `android-actions/setup-android` | v4 | v3 |
+| `actions/upload-artifact` | v7 | v4 |
+
+**Los avisos de deprecación salen en cadena y eso engaña.** Primero ves
+*"setup-java v4 is deprecated"*; al subirlo aparece *"Node.js 20 is deprecated ... actions targeting
+Node.js 20 are being forced to run on Node.js 24"*, que **no es de `setup-java` sino de las cinco**.
+Subir solo una deja el aviso a medias y no se distingue si el problema era de esa o de las otras: hay
+que subir las cinco.
+
+Para subirlas sin riesgo, **lee el `action.yml` del tag antes de tocar el workflow** y no confíes en
+que el bloque siga igual:
+
+```
+https://raw.githubusercontent.com/<owner>/<repo>/v7/action.yml
+```
+
+Hay que comprobar dos cosas: que `runs.using` sea el nuevo (para callar el aviso) y que los inputs que
+usa el workflow sigan existiendo con el mismo nombre. Así se confirmó que `distribution` /
+`java-version`, `node-version` y `name` / `path` / `if-no-files-found` no han cambiado, y que
+`setup-android@v4` sigue con `packages` por defecto (ver la nota de abajo).
+
 ## Mandatory helpers (do not bypass these)
 
 Raw `parseFloat` and `categories[key]` were the source of the worst bugs; every value now goes through a normaliser.
@@ -289,8 +319,10 @@ en la PC solo hacen falta `git` y `gh`. `package.json` **no se toca** (Capacitor
   `keyPassword` igual a `storePassword`; poner el otro valor hace fallar el empaquetado con
   `KeytoolException: Get Key failed: Given final block not properly padded`.
 - **JDK 21, no 17**: `capacitor-android` declara `sourceCompatibility = VERSION_21`.
-- `android-actions/setup-android@v3` trae `packages: 'tools platform-tools'` por defecto y el paquete `tools`
+- `android-actions/setup-android@v4` trae `packages: 'platform-tools'` por defecto y el paquete `tools`
   ya no existe: hay que pasar `packages:` explícito o el build muere con `Failed to find package 'tools'`.
+  **Comprobado en el `action.yml` de v4: el default sigue siendo `platform-tools`, o sea que subir de
+  major NO arregla la trampa por sí solo.** Sigue habiendo que pasar `packages:` a mano.
 - **El APK sale en `android/app/build/outputs/apk/release/`**, no en `android/build/...`: `android/` es la raíz de
   Gradle y `app/` el módulo.
 - Se copia a `www/` **solo lo que la app usa en ejecución**. Usar el repo entero como `webDir` metería
