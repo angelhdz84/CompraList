@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { skipOnboardingFlag, bloquearFuentesRemotas } from './helpers.js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -192,6 +192,24 @@ for (const dark of [false, true]) {
     expect(info.seVe).toBe(true);
   });
 }
+
+test('los XML de Android no tienen "--" en los comentarios', () => {
+  // Un comentario XML no puede contener dos guiones seguidos (XML 1.0, seccion
+  // 2.5). Con un "--accent" o un "make-icons --launcher" escritos en el
+  // comentario, Gradle muere en mergeReleaseResources con
+  //   Error: The string "--" is not permitted within comments
+  // que es un error que NO menciona comentarios, asi que cuesta leer.
+  const dir = join(raiz, 'tools', 'android-icons');
+  for (const f of readdirSync(dir)) {
+    const txt = readFileSync(join(dir, f), 'utf8');
+    const abiertos = (txt.match(/<!--/g) || []).length;
+    const cerrados = (txt.match(/-->/g) || []).length;
+    expect(abiertos, `${f}: comentarios sin cerrar`).toBe(cerrados);
+    for (const c of txt.matchAll(/<!--([\s\S]*?)-->/g)) {
+      expect(c[1], `${f}: hay "--" dentro de un comentario XML, que no se permite`).not.toContain('--');
+    }
+  }
+});
 
 test('los iconos del launcher se generan en las cinco densidades', () => {
   // El workflow los copia a android/app/src/main/res. Si esto falla al compilar,

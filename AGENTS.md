@@ -113,6 +113,11 @@ antes de compilar:
   el workflow solo hace `cp`.
 - El color de fondo del icono de Android (`#4f46e5`) es el `--accent` de `css/style.css`. Si cambias
   el acento, cambia también `tools/android-icons/ic_launcher_background.xml`.
+- **Un comentario XML no puede contener `--`** (XML 1.0, sección 2.5). Escribir `--accent` o
+  `make-icons --launcher` dentro de un comentario de esos XML tumba el build en `mergeReleaseResources`
+  con `Error: The string "--" is not permitted within comments`: un error que **no menciona los
+  comentarios**, así que cuesta leer. Costó un build. `tests/marca.spec.js` lo comprueba.
+  En YAML y en CSS los comentarios sí admiten `--`.
 
 ### Los iconos de categoría (los del sprite)
 

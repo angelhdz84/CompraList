@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      El --accent de css/style.css (medido en 4,5:1 sobre blanco). Si cambias el
-      acento de la app, hay que cambiarlo aqui tambien: el icono del launcher y
-      el de la web son el mismo color de marca.
+      Fondo del icono adaptativo. Es el color de acento de css/style.css (medido
+      en 4,5:1 sobre blanco). Si cambias el acento de la app, hay que cambiarlo
+      aqui tambien: el icono del launcher y el de la web son el mismo color de
+      marca.
+      OJO: un comentario XML no puede contener dos guiones seguidos (XML 1.0,
+      seccion 2.5), asi que aqui no se escribe el nombre de la variable CSS ni el
+      de ninguna opcion de linea de comandos. Hacerlo tumba el build en
+      mergeReleaseResources con un error que no menciona los comentarios.
     -->
     <color name="ic_launcher_background">#4f46e5</color>
 </resources>
